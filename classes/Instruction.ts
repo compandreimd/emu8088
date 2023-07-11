@@ -44,37 +44,50 @@ class Instruction{
         let size = 1;
         let bytes = [];
         let args = new Map<string, any>();
-        if(n[offset] == 0xE8 || n[offset] == 0x9A){
+        if(n[offset] == 0xE8){
             let addr = (n[size + 1 + offset] << 8) + n[size + offset];
             size += 2;
             addr += size + offset;
             str += addr.toString(16).padStart(4,'0');
+            args.set('isFar', false);
+            args.set('addr', addr);
+        }
+        else if(n[offset] == 0x9A){
+            let addr = (n[size + 1 + offset] << 8) + n[size + offset];
+            let segm = (n[size + 3 + offset] << 8) + n[size + 2 + offset];
+            size += 4;
+            str += segm.toString(16).padStart(4,'0')  + ":" + addr.toString(16).padStart(4,'0');
+            args.set('isFar', true);
+            args.set('addr', addr);
+            args.set('seg', segm);
         }
         else if(n[offset] == 0xFF && (n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})010(?<rm>[01]{3})/) != null || n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})011(?<rm>[01]{3})/) != null )){
+            args.set('isFar', n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})011(?<rm>[01]{3})/) != null);
+            args.set('isFF', true);
             let rm = (config.get('rm') as RM);
             let mod = (config.get('mod') as Mod);
-            let rmn = rm.Name;
+            let rmn = rm?.Name ?? "???";
             size += 1;
-            if (mod.Value == 1) {
+            if (mod?.Value === 1) {
                 let suffix = n[size + offset].toString(16).padStart(2, '0');
                 size += 1;
                 rmn = rmn.substring(0, rmn.length - 1) + "+" + suffix + "]";
                 args.set('suffix', n[size + offset]);
             }
-            if (mod.Value == 2) {
+            if (mod?.Value === 2) {
                 let suffix = n[size + 1 + offset].toString(16).padStart(2, '0')
                     + n[size + offset].toString(16).padStart(2, '0')
                 size += 2;
                 args.set('suffix', (n[size+1+offset] << 8) + n[size+offset]);
                 rmn = rmn.substring(0, rmn.length - 1) + "+" + suffix + "]";
             }
-            if (mod.Value == 3) {
+            if (mod?.Value === 3) {
                 let w = config.get('w');
                 let reg: Registers = (w == Sizes.b ? Registers.Reg8 : Registers.Reg16).find(x => x.RegBit == rm.Value);
                 args.set('suffix', reg);
                 rmn = reg.Name;
             }
-            if (rm.Value == 6 && mod.Value == 0) {
+            if (rm?.Value === 6 && mod?.Value === 0) {
                 rmn = "[" + n[size + 1 + offset]?.toString(16).padStart(2, '0') + n[size+offset]?.toString(16).padStart(2, '0') + "]";
                 args.set('ram', (n[size+1+offset] << 8) + n[size]);
                 size += 2;
@@ -173,7 +186,8 @@ class Instruction{
         let d:Map<string, any> = new Map<string, any>();
         this.#bins.forEach((x, i) => {
             let bin = (n[i + offset] ?? 0).toString(2).padStart(8, '0');
-            let gr = bin.match(x).groups;
+            let gr = bin.match(x)?.groups;
+            if(gr)
             for(let k in gr){
                 d.set(k, parseInt(gr[k], 2))
             }
@@ -405,7 +419,7 @@ function and(cpu:Cpu, args:Map<string, any>){
 
 
 export const AND = [
-    new Instruction("AND", /AND 1/, [
+    new Instruction("AND", /AND 1/, [ /001000(?<d>[01])(?<w>[01])/,
         /(?<mod>[01]{2})(?<reg>[01]{3})(?<rm>[01]{3})/], and),
     new Instruction("AND", /AND 2/, [
         /100000(?<s>[01])(?<w>[01])/,
@@ -413,16 +427,43 @@ export const AND = [
     new Instruction("AND", /AND 3/, [/0010010(?<w>[01])/], and)
 ];
 
+function call(cpu, args:Map<string, any>){
+    if(args.has('mod')){
+        let rm = (args.get('rm') as RM);
+        let mod = (args.get('mod') as Mod);
+        let a = cpu.getByRM(rm, mod, 0, args.has('isFar') && args.get('isFar')? Sizes.d: Sizes.w);
+        if (args.has('isFar') && args.get('isFar')) {
+            cpu.SP.Value -= 2;
+            let segs = [a >> 16 & 0xFF, (a >> 24) & 0xFF];
+            cpu.setMEM(cpu.SP.Value, cpu.SS.Value, segs)
+        }
+        cpu.SP.Value -= 2;
+        let addrs = [a & 0xFF, (a >> 8) & 0xFF];
+        cpu.setMEM(cpu.SP.Value, cpu.SS.Value, addrs)
+    }
+    else {
+        if (args.has('isFar') && args.get('isFar')) {
+            cpu.SP.Value -= 2;
+            let seg = args.get('seg');
+            let segs = [seg & 0xFF, (seg >> 8) & 0xFF];
+            cpu.setMEM(cpu.SP.Value, cpu.SS.Value, segs)
+        }
+        cpu.SP.Value -= 2;
+        let addr = args.get('addr');
+        let addrs = [addr & 0xFF, (addr >> 8) & 0xFF];
+        cpu.setMEM(cpu.SP.Value, cpu.SS.Value, addrs)
+    }
 
+}
 export const CALL = [
     new Instruction("CALL", /CALL 1/, [
-        /11101000/]),
+        /11101000/], call),
     new Instruction("CALL", /CALL 2/, [
-        /11111111/, /(?<mod>[01]{2})010(?<rm>[01]{3})/]),
+        /11111111/, /(?<mod>[01]{2})010(?<rm>[01]{3})/], call),
     new Instruction("CALL FAR", /CALL FAR 1/, [
-        /10011010/]),
+        /10011010/], call),
     new Instruction("CALL FAR", /CALL FAR 2/, [
-        /11111111/, /(?<mod>[01]{2})011(?<rm>[01]{3})/]),
+        /11111111/, /(?<mod>[01]{2})011(?<rm>[01]{3})/], call), //TODO BUG NOT Find
 ];
 
 
