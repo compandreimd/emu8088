@@ -8,7 +8,7 @@ node_modules/
 dist/
 
 #js
-    package-lock.json
+/package-lock.json
 #ts
 
 # Compiled Java class files
