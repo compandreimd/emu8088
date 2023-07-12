@@ -26,17 +26,19 @@ class Instruction{
         return str.match(this.#regs) != null;
     }
     check(n:number[], offset:number = 0):boolean{
+        let t = true;
         for(let i = 0; i < n.length; i++){
             if(this.#bins[i]) {
                 let str = n[i + offset].toString(2).padStart(8, '0');
                 let m =  str.match(this.#bins[i]);
-                if(m != null){
-                    return true;
+                if(m == null){
+                    t = false;
+                    break;
                 }
-                return false;
             }
-            return false;
+
         }
+        return t;
     }
     asASM(n:number[], offset:number = 0):{asm:string, size: number, bytes:number[], args?:Map<string, any>}{
         let config = this.getGroups(n, offset);
@@ -167,6 +169,7 @@ class Instruction{
             }
 
         }
+        if(size < this.#bins.length) size = this.#bins.length;
         for (let i = 0; i < size; i++) {
                 if (n[i + offset]) {
                     bytes.push(n[i + offset]);
