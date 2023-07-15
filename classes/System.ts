@@ -1,4 +1,4 @@
-enum SysState {
+export enum SysState {
     RUNNING,
     HALT,
 }
@@ -7,11 +7,4 @@ enum Repeat {
     REP,
     Z,
     NZ
-}
-enum Seg {
-    NONE,
-    CS,
-    DS,
-    ES,
-    SS
 }

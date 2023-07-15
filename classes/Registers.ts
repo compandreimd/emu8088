@@ -40,6 +40,7 @@ export class Registers {
         //0x0020
         ZF : {name:'ZF', offset:0x0040 },
         SF : {name:'SF', offset:0x0080 },
+        TF : {name:'TF', offset:0x0100 },
         IF : {name:'IF', offset:0x0200 },
         DF : {name:'DF', offset:0x0400 },
         OF : {name:'OF', offset:0x0800 },

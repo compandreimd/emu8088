@@ -2,7 +2,6 @@ import {Mod, Registers, RM, Sizes} from "./Registers";
 import Cpu from "./Cpu";
 import {AddressValue, checkParity} from "./Utils";
 
-
 class Instruction{
     static getInstructions(){
         return Instruction.#list;
@@ -27,6 +26,7 @@ class Instruction{
     }
     check(n:number[], offset:number = 0):boolean{
         let t = true;
+        let d: Map<string, any> = new Map();
         for(let i = 0; i < n.length; i++){
             if(this.#bins[i]) {
                 let str = n[i + offset].toString(2).padStart(8, '0');
@@ -34,6 +34,18 @@ class Instruction{
                 if(m == null){
                     t = false;
                     break;
+                }
+                else {
+                    for(let k in d){
+                        if(d.has(k)) {
+                            if(d.get(k) ==  parseInt(d[k], 2)) {
+                                t = false;
+                                break;
+                            }
+                        }
+                        d.set(k, parseInt(d[k], 2))
+                    }
+                    if(!t) break;
                 }
             }
 
@@ -133,6 +145,7 @@ class Instruction{
                         str += ", ";
                         str += n[size + 1 + offset]?.toString(16).padStart(2, '0') + n[size + offset]?.toString(16).padStart(2, '0');
                         args.set('sv', (n[size + 1 + offset] << 8) | n[size +offset]);
+
                         args.set('ss', Sizes.w);
                         size += 2;
                     } else {
@@ -145,16 +158,21 @@ class Instruction{
                     }
                 } else {
                     args.set('sv', config.get('reg'));
-                    if (config.get('d')) {
+                    if (config.has('d') && config.get('d')) {
                         str += (config.get('reg') as Registers).Name;
                         str += ", ";
                         str += rmn;
                     } else {
                         str += rmn;
-                        str += ", ";
-                        str += (config.get('reg') as Registers).Name;
+                        if(config.has('reg')){
+                            str += ", ";
+                            str += (config.get('reg') as Registers).Name;
+                        }
                     }
                 }
+            }
+            else if(config.has('reg')){
+                str = config.get('reg').Name;
             }
             else if (config.has('w')) {
                 if (config.get('w')) {
@@ -225,7 +243,6 @@ class Instruction{
             this.#run(cpu, args);
     }
 }
-
 export const AAA = new Instruction("AAA",/AAA/, [/00110111/], (cpu) => {
     if((cpu.AL.Value & 0x0F) > 9 || cpu.AF.Value){
         cpu.AL.Value += 0x06;
@@ -236,7 +253,6 @@ export const AAA = new Instruction("AAA",/AAA/, [/00110111/], (cpu) => {
         cpu.CF.Value = cpu.AF.Value = false;
     }
 })
-
 export const AAD = new Instruction("AAD",/AAD/, [/11010101/, /00001010/], (cpu) => {
     let result = cpu.AH.Value * 10 + cpu.AL.Value;
     cpu.AL.Value = result;
@@ -245,7 +261,6 @@ export const AAD = new Instruction("AAD",/AAD/, [/11010101/, /00001010/], (cpu) 
     cpu.PF.Value = checkParity(result);
     cpu.SF.Num = result & 0x80;
 });
-
 export const AAM = new Instruction("AAM", /AAM/, [/11010100/, /00001010/], (cpu) => {
     const base = 10;
     const value = cpu.AL.Value;
@@ -255,7 +270,6 @@ export const AAM = new Instruction("AAM", /AAM/, [/11010100/, /00001010/], (cpu)
     cpu.PF.Value = checkParity(result);
     cpu.SF.Num = result & 0x80;
 })
-
 export const AAS = new Instruction("AAS",/AAS/, [/00111111/], (cpu) => {
     if((cpu.AL.Value & 0x0F) > 9 || cpu.AF.Value){
         cpu.AL.Value -= 0x06;
@@ -266,7 +280,6 @@ export const AAS = new Instruction("AAS",/AAS/, [/00111111/], (cpu) => {
         cpu.CF.Value = cpu.AF.Value = false;
     }
 })
-
 function getSrcDes(cpu:Cpu, args:Map<string,any>): { src: AddressValue, dest: AddressValue, size:Sizes }{
     let src;
     let dest;
@@ -294,6 +307,7 @@ function getSrcDes(cpu:Cpu, args:Map<string,any>): { src: AddressValue, dest: Ad
                             return v;
                         },
                         Value: v,
+                        SValue: v,
                         get Name():string{
                             return v.toString(16);
                         }
@@ -373,7 +387,6 @@ function adc(cpu:Cpu, args:Map<string, any>){
     checkADD(cpu, dest, src, result, size)
     dest.Value = dest.Value + src.Value + cpu.CF.Num;
 }
-
 export const ADC = [
     new Instruction("ADC", /ADC 1/, [
         /000100(?<d>[01])(?<w>[01])/,
@@ -384,15 +397,12 @@ export const ADC = [
     new Instruction("ADC", /ADC 3/, [/0001010(?<w>[01])/], adc)
 
 ];
-
-
 function add(cpu:Cpu, args:Map<string, any>){
     const  {dest, src, size} = getSrcDes(cpu, args);
     let result = dest.Value + src.Value;
     checkADD(cpu, dest, src, result, size);
     dest.Value = dest.Value + src.Value;
 }
-
 export const ADD = [
     new Instruction("ADD", /ADD 1/, [
         /000000(?<d>[01])(?<w>[01])/,
@@ -402,8 +412,6 @@ export const ADD = [
         /(?<mod>[01]{2})000(?<rm>[01]{3})/], add),
     new Instruction("ADD", /ADD 3/, [/0000010(?<w>[01])/], add)
 ];
-
-
 function and(cpu:Cpu, args:Map<string, any>){
     const  {dest, src, size} = getSrcDes(cpu, args);
     let result = dest.Value & src.Value;
@@ -419,8 +427,6 @@ function and(cpu:Cpu, args:Map<string, any>){
     this.OF.Value = false;
     dest.Value = result;
 }
-
-
 export const AND = [
     new Instruction("AND", /AND 1/, [ /001000(?<d>[01])(?<w>[01])/,
         /(?<mod>[01]{2})(?<reg>[01]{3})(?<rm>[01]{3})/], and),
@@ -429,7 +435,6 @@ export const AND = [
         /(?<mod>[01]{2})100(?<rm>[01]{3})/], and),
     new Instruction("AND", /AND 3/, [/0010010(?<w>[01])/], and)
 ];
-
 function call(cpu, args:Map<string, any>){
     if(args.has('mod')){
         let rm = (args.get('rm') as RM);
@@ -468,6 +473,227 @@ export const CALL = [
     new Instruction("CALL FAR", /CALL FAR 2/, [
         /11111111/, /(?<mod>[01]{2})011(?<rm>[01]{3})/], call), //TODO BUG NOT Find
 ];
+function cbw(cpu){
+    if(cpu.AL.Value < 0x80) cpu.AH.Value = 0;
+    else cpu.AH.Value = 0xFF;
+}
+export const CBW = new Instruction("CBW", /CBW/, [/10011000/], cbw)
+function clc(cpu){
+    cpu.CF.Value = false;
+}
+export const CLC = new Instruction("CLC", /CLC/, [/11111000/], clc)
+function cld(cpu){
+    cpu.DF.Value = false;
+}
+export const CLD = new Instruction("CLD", /CLD/, [/11111100/], cld)
+function cli(cpu){
+    cpu.IF.Value = false;
+}
+export const CLI = new Instruction("CLI", /CLI/, [/11111010/], cli)
+function cmc(cpu){
+    cpu.CF.Value = !cpu.CF.Value;
+}
+export const CMC = new Instruction("CMC", /CMC/, [/11110101/], cmc)
+function cmp(cpu:Cpu, args:Map<string, any>){
+    const  {dest, src, size} = getSrcDes(cpu, args);
+    let result = dest.Value + src.Value;
+    checkADD(cpu, dest, src, result, size);
+    cpu.CF.Value = dest < src;
+    cpu.ZF.Value = result == 0;
+    cpu.SF.Value = result < 0;
+    cpu.OF.Value = Boolean((result ^ dest.Value) & (dest.Value ^ src.Value) & (size === Sizes.b ? 0x80 : 0x8000))
+    cpu.PF.Value = checkParity(result);
+    cpu.AF.Value = ((dest.Value & 0xf) + (src.Value & 0xf) + cpu.CF.Num) > 0xf;
+
+}
+export const CMP = [
+    new Instruction("CMP", /CMP 1/, [ /001110(?<d>[01])(?<w>[01])/,
+        /(?<mod>[01]{2})(?<reg>[01]{3})(?<rm>[01]{3})/], cmp),
+    new Instruction("CMP", /CMP 2/, [
+        /100000(?<s>[01])(?<w>[01])/,
+        /(?<mod>[01]{2})111(?<rm>[01]{3})/], cmp),
+    new Instruction("CMP", /CMP 3/, [/0011110(?<w>[01])/], cmp)
+];
+function cmpsb(cpu){
+    cpu.AL.Value = cpu.getMEM(this.SI.Value, this.DS.Value, Sizes.b).Value;
+    cpu.AH.Value = cpu.getMEM(this.DI.Value, this.ES.Value, Sizes.b).Value
+    const res = cpu.AL.Value - cpu.AH.Value;
+    cpu.SI.Value++;
+    cpu.DI.Value++;
+    cpu.CF.Value = res < 0;
+    cpu.ZF.Value = res == 0;
+    cpu.SF.Value = res < 0;
+    cpu.OF.Value = Boolean((res ^ cpu.AL.Value) & (cpu.AL.Value ^ cpu.AH.Value) & 0x80);
+    cpu.PF.Value = checkParity(res);
+    cpu.AF.Value = ((cpu.AL.Value & 0xf) + ( cpu.AH.Value & 0xf) + cpu.CF.Num) > 0xf;
+}
+function cmpsw(cpu){
+    cpu.AX.Value = cpu.getMEM(this.SI.Value, this.DS.Value, Sizes.w).Value;
+    cpu.BX.Value = cpu.getMEM(this.DI.Value, this.ES.Value, Sizes.w).Value
+    const res = cpu.AX.Value - cpu.BX.Value;
+    cpu.SI.Value++;
+    cpu.DI.Value++;
+    cpu.CF.Value = res < 0;
+    cpu.ZF.Value = res == 0;
+    cpu.SF.Value = res < 0;
+    cpu.OF.Value = Boolean((res ^ cpu.AX.Value) & (cpu.AX.Value ^ cpu.BX.Value) & 0x8000);
+    cpu.PF.Value = checkParity(res);
+    cpu.AF.Value = ((cpu.AX.Value & 0xf) + ( cpu.BX.Value & 0xf) + cpu.CF.Num) > 0xf;
+}
+export const CMPSB = new Instruction("CMPSB", /CMPSB/, [/10100110/], cmpsb)
+export const CMPSW = new Instruction("CMPSW", /CMPSW/, [/10100111/], cmpsw)
+function daa(cpu){
+
+    if ((cpu.AL.Value & 0x0F) > 9 || cpu.AF.Value) {
+        cpu.AL.Value += 6;
+        cpu.AF.Value = true;
+    }
+
+    // Handle carry from the least significant nibble to the most significant nibble
+    if ((cpu.AL.Value & 0x9F) || cpu.CF.Value  ) {
+        cpu.AL.Value += 0x60;
+        cpu.CF.Value = true;
+    }
+
+    cpu.ZF.Value = cpu.AL.Value === 0;
+    cpu.SF.Value = (cpu.AL.Value & 0x80) !== 0;
+    cpu.PF.Value = checkParity(cpu.AL.Value)
+}
+export const DAA = new Instruction("DAA", /DAA/, [/00100111/], daa);
+function das(cpu){
+    if ((cpu.AL.Value & 0x0F) > 9 || cpu.AF.Value) {
+        cpu.AL.Value -= 6;
+        cpu.AF.Value = true;
+    }
+
+    // Handle carry from the least significant nibble to the most significant nibble
+    if ((cpu.AL.Value & 0x9F) || cpu.CF.Value  ) {
+        cpu.AL.Value -= 0x60;
+        cpu.CF.Value = true;
+    }
+
+    cpu.ZF.Value = cpu.AL.Value === 0;
+    cpu.SF.Value = (cpu.AL.Value & 0x80) !== 0;
+    cpu.PF.Value = checkParity(cpu.AL.Value)
+}
+export const DAS = new Instruction("DAS", /DAS/, [/00101111/], das)
+function dec(cpu, args){
+    let dest:AddressValue;
+    let size:Sizes;
+    if(args.has('w')) {
+        dest = cpu.getByRM(args.get('rm'), args.get('mod'), args.get('suffix'), args.get('w') ? Sizes.w : Sizes.b);
+        size = args.get('w') ? Sizes.w : Sizes.b;
+    }
+    else
+    {
+        dest = args.get('reg');
+        size = args.get('reg').Size;
+    }
+
+    dest.Value += -1;
+    cpu.AF.Value = (dest.Value & 0x0F) === 0x0F;
+    cpu.PF.Value = checkParity(dest.Value);
+    cpu.ZF.Value = dest.Value == 0;
+    if(size == Sizes.b){
+        cpu.OF.Value = dest.Value === 0x7F;
+        cpu.SF.Value = (dest.Value & 0x80) !== 0;
+    }
+    else {
+        cpu.OF = dest.Value = 0x7FFF;
+        cpu.SF.Value = (dest.Value & 0x8000) !== 0;
+    }
+}
+export const DEC = [
+    new Instruction("DEC", /DEC 1/,  [/1111111(?<w>[01])/,
+        /(?<mod>[01]{2})001(?<rm>[01]{3})/], dec),
+    new Instruction("DEC", /DEC 2/,  [/01001(?<reg>[01]{3})/], dec),
+]
+
+function div(cpu, args){
+    let src = cpu.getByRM(args.get('rm'), args.get('mod'), args.get('suffix'), args.get('w') ? Sizes.w : Sizes.b);
+    let size = args.get('w') ? Sizes.w : Sizes.b;
+    let NUMR:number, DIVR = src, QUO, REM, MAX;
+    if(size == Sizes.b){
+        NUMR = cpu.AX.Value;
+        QUO = cpu.AL;
+        REM = cpu.AH;
+        MAX = 0xFF;
+    }
+    else {
+        NUMR = (cpu.DX.Value << 8) | cpu.AX.Value;
+        QUO = cpu.AX;
+        REM = cpu.DX;
+        MAX = 0xFFFF;
+    }
+    let temp = NUMR;
+    if(DIVR.Value ==  0 || Math.floor(temp/ DIVR.Value) > MAX){
+        throw Error("DIV 0"); //TODO Internal Function For Exception
+        // //Iternal Function What ??
+        // cpu.SP.Value -= 2;
+        // let flags = cpu.FLAGS.Value;
+        // cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [flags & 0xFF, flags >> 8 ]);
+        // cpu.IF.Value = false;
+        // cpu.TF.Value = false;
+        // cpu.SP.Value -= 2;
+        // let cs = cpu.CS.Value;
+        // cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [cs & 0xFF, cs >> 8]);
+
+    }
+    QUO.Value = Math.floor(temp / DIVR.Value);
+    REM.Value = temp % DIVR.Value;
+}
+export const DIV = new Instruction("DIV", /DIV 1/, [/1111011(?<w>[01])/,
+    /(?<mod>[01]{2})110(?<rm>[01]{3})/], div)
+
+function hlt(cpu) {
+    cpu.toHalt();
+}
+export const HLT = new Instruction("HLT", /HLT/, [/11110100/] , hlt)
+
+function idiv(cpu, args){
+    //TODO IDIV How Work
+    let src = cpu.getByRM(args.get('rm'), args.get('mod'), args.get('suffix'), args.get('w') ? Sizes.w : Sizes.b);
+    let size = args.get('w') ? Sizes.w : Sizes.b;
+    const NUMR = 0;
+    const DIVR = 1;
+    const TMP = 2;
+    let buffer = size == Sizes.w ? new Uint16Array(3) : new Uint8Array(3);
+    let sbuffer = size == Sizes.w ? new Int16Array(buffer.buffer) : new Int8Array(buffer.buffer);
+    buffer[DIVR] = src.Value;
+    let QUO, REM, MAX;
+
+    if(size == Sizes.b){
+        buffer[NUMR] = cpu.AX.Value;
+        QUO = cpu.AL;
+        REM = cpu.AH;
+        MAX = 0x7F;
+    }
+    else {
+        buffer[NUMR] = (cpu.DX.Value << 8) | cpu.AX.Value;
+        QUO = cpu.AX;
+        REM = cpu.DX;
+        MAX = 0x7FFF;
+    }
+
+    sbuffer[TMP] = sbuffer[NUMR];
+    if(sbuffer[DIVR] == 0)   throw Error("DIV 0");
+    let t  =  Math.floor(sbuffer[NUMR] / sbuffer[DIVR]);
+    if((t > MAX && t > 0) || (t < 0 - MAX - 1 && t < 0 ) ){
+        throw Error("DIV 0"); //TODO Internal Function For Exception
+    }
+    QUO.Value = Math.floor(sbuffer[NUMR] / sbuffer[DIVR]);
+    sbuffer[TMP] = sbuffer[NUMR] % sbuffer[DIVR];
+    REM.Value = buffer[TMP];
+}
+export const IDIV = new Instruction("IDIV", /IDIV 1/, [/1111011(?<w>[01])/,
+    /(?<mod>[01]{2})111(?<rm>[01]{3})/], idiv)
 
 
+
+///ESC ===
+function esc(cpu, args){
+    //TODO Escape
+    console.log("ESC", args);
+}
+export const ESC = new Instruction("ESC", /ESC 1/, [/11011(?<x>[01]{3})/,   /(?<mod>[01]{2})(?<x>[01]{3})(?<rm>[01]{3})/], esc)
 export const Instructions = Instruction.getInstructions();

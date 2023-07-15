@@ -2,6 +2,7 @@ export interface AddressValue {
     get Name():string,
     get Address():number,
     Value:number
+    SValue?:number
 }
 
 export const PARITY = [

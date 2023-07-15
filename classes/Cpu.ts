@@ -2,6 +2,7 @@ import {Mod, Registers, RM, Sizes} from "./Registers";
 import Reg from "./Register"
 import Flag from "./Flag";
 import {AddressValue} from "./Utils";
+import {SysState} from "./System";
 
 
 export default class Cpu{
@@ -9,6 +10,7 @@ export default class Cpu{
     #reg16 = new Uint16Array(this.#reg8.buffer);
     #ram = 256;
     #mem8 = new Uint8Array(this.#ram)
+    #state: SysState = SysState.RUNNING
     readonly AL = new Reg(this.#reg8, Registers.AL);
     readonly AH = new Reg(this.#reg8, Registers.AH)
     readonly BL = new Reg(this.#reg8, Registers.BL)
@@ -30,15 +32,16 @@ export default class Cpu{
     readonly SS = new Reg(this.#reg16, Registers.SS)
     readonly CS = new Reg(this.#reg16, Registers.CS)
     readonly IP = new Reg(this.#reg16, Registers.IP)
-    readonly #FLAGS = new Reg(this.#reg16, Registers.FLAGS)
-    readonly CF = new Flag(this.#FLAGS, Registers.Flags.CF)
-    readonly PF = new Flag(this.#FLAGS, Registers.Flags.PF)
-    readonly AF = new Flag(this.#FLAGS, Registers.Flags.AF)
-    readonly ZF = new Flag(this.#FLAGS, Registers.Flags.ZF)
-    readonly SF = new Flag(this.#FLAGS, Registers.Flags.SF)
-    readonly IF = new Flag(this.#FLAGS, Registers.Flags.IF)
-    readonly DF = new Flag(this.#FLAGS, Registers.Flags.DF)
-    readonly OF = new Flag(this.#FLAGS, Registers.Flags.OF)
+    readonly FLAGS = new Reg(this.#reg16, Registers.FLAGS)
+    readonly CF = new Flag(this.FLAGS, Registers.Flags.CF)
+    readonly PF = new Flag(this.FLAGS, Registers.Flags.PF)
+    readonly AF = new Flag(this.FLAGS, Registers.Flags.AF)
+    readonly ZF = new Flag(this.FLAGS, Registers.Flags.ZF)
+    readonly SF = new Flag(this.FLAGS, Registers.Flags.SF)
+    readonly TF = new Flag(this.FLAGS, Registers.Flags.TF)
+    readonly IF = new Flag(this.FLAGS, Registers.Flags.IF)
+    readonly DF = new Flag(this.FLAGS, Registers.Flags.DF)
+    readonly OF = new Flag(this.FLAGS, Registers.Flags.OF)
     readonly ALLRegs = [
         this.AL, this.AH, this.AX,
         this.BL, this.BH, this.BX,
@@ -47,6 +50,10 @@ export default class Cpu{
         this.SI, this.DI, this.BP, this.SP,
         this.DS, this.ES, this.CS,
     ]
+
+    toHalt(){
+        this.#state = SysState.HALT;
+    }
 
     getByReg(reg:Registers):AddressValue{
         let r = this.ALLRegs.find(x => x.Reg.Offset == reg.Offset && x.Reg.Size == reg.Size);
@@ -125,7 +132,7 @@ export default class Cpu{
                         that.setMEM(address + offset, dss.Value, [a1, a2, a3, a4]);
                     }
                    // that.setMEM(address + offset, 0, size, v);
-                }
+                },
             };
 
         }
@@ -154,6 +161,27 @@ export default class Cpu{
         }
     }
 
+    getSMEM(offset:number, segment:number, size:Sizes):number{
+        let saddr = offset + segment * 0x10;
+
+        switch (size){
+            case Sizes.w:
+                let uw = new Uint16Array(1);
+                let sw = new Int16Array(uw.buffer);
+                uw[0] = this.#mem8[saddr + 1] << 8 | this.#mem8[saddr];
+                return sw[0];
+            case Sizes.d:
+                let ud = new Uint32Array(1);
+                let sd = new Int32Array(ud.buffer);
+                ud[0] = this.#mem8[saddr + 3] << 24 | this.#mem8[saddr + 2]  << 16 | this.#mem8[saddr + 1] << 8 | this.#mem8[saddr];
+                return sd[0]
+            case Sizes.b:
+                let ub = new Uint32Array(1);
+                let sb = new Int32Array(ub.buffer);
+                ub[0] = this.#mem8[saddr + 3] << 24 | this.#mem8[saddr + 2]  << 16 | this.#mem8[saddr + 1] << 8 | this.#mem8[saddr];
+                return sb[0]
+        }
+    }
     setMEM(offset:number, segment:number, v:number[]){
         let saddr = offset + segment * 0x10;
         for(let i = 0; i < v.length; i++){
