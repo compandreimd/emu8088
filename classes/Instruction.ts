@@ -58,7 +58,59 @@ class Instruction{
         let size = 1;
         let bytes = [];
         let args = new Map<string, any>();
-        if(n[offset] == 0xE8){
+        if(n[offset] == 0xCC){
+            str = "3";
+            args.set('type', 3);
+        }
+        else if(n[offset] == 0xCD) {
+            args.set('type', 3);
+            let v = n[offset + size];
+            str += v.toString(10)
+            size+=1;
+        }
+        else if(n[offset] == 0xE4 || n[offset] == 0xE5 || n[offset] == 0xEC || n[offset] == 0xED) {
+            if(config.get('w')){
+                str += "AX,";
+                args.set('w', 1);
+            }
+            else {
+                str += "AL,"
+                args.set('w', 0);
+            }
+            if(config.get('p')){
+                if(config.get('w')){
+                    str += "DX";
+                    args.set('w', 1);
+                }
+                else {
+                    str += "DX"
+                    args.set('w', 0);
+                }
+            }
+            else {
+                let v = n[offset + size];
+                str += v.toString(16).padStart(2, '0');
+                args.set('port', v);
+                size += 1;
+            }
+        }
+        else if(n[offset] == 0x77 || n[offset] == 0x72
+           || n[offset] == 0x73 || n[offset] == 0x76
+           || n[offset] == 0x74 || n[offset] == 0x7F
+           || n[offset] == 0xE3 || n[offset] == 0x7D
+           || n[offset] == 0x7C || n[offset] == 0x7E
+           || n[offset] == 0x75 || n[offset] == 0x71
+           || n[offset] == 0x79 || n[offset] == 0x7D
+           || n[offset] == 0x70 || n[offset] == 0x7A
+           || n[offset] == 0x78
+    ){
+            let addr = n[size + offset];
+            size += 1;
+            addr += size + offset & 0xFF;
+            str += addr.toString(16).padStart(4,'0');
+            args.set('addr', addr);
+        }
+        else if(n[offset] == 0xE8){
             let addr = (n[size + 1 + offset] << 8) + n[size + offset];
             size += 2;
             addr += size + offset;
@@ -620,7 +672,7 @@ function div(cpu, args){
         MAX = 0xFF;
     }
     else {
-        NUMR = (cpu.DX.Value << 8) | cpu.AX.Value;
+        NUMR = (cpu.DX.Value << 16) | cpu.AX.Value;
         QUO = cpu.AX;
         REM = cpu.DX;
         MAX = 0xFFFF;
@@ -651,45 +703,286 @@ function hlt(cpu) {
 export const HLT = new Instruction("HLT", /HLT/, [/11110100/] , hlt)
 
 function idiv(cpu, args){
-    //TODO IDIV How Work
     let src = cpu.getByRM(args.get('rm'), args.get('mod'), args.get('suffix'), args.get('w') ? Sizes.w : Sizes.b);
     let size = args.get('w') ? Sizes.w : Sizes.b;
-    const NUMR = 0;
-    const DIVR = 1;
-    const TMP = 2;
-    let buffer = size == Sizes.w ? new Uint16Array(3) : new Uint8Array(3);
+    let buffer = size == Sizes.w ? new Uint16Array(2) : new Uint8Array(2);
     let sbuffer = size == Sizes.w ? new Int16Array(buffer.buffer) : new Int8Array(buffer.buffer);
-    buffer[DIVR] = src.Value;
+    let buffer2 = size == Sizes.w ? new Uint32Array(1) : new Uint16Array(1);
+    let sbuffer2 = size == Sizes.w ? new Int32Array(buffer2.buffer) : new Int16Array(buffer2.buffer);
+    buffer[0] = src.Value;
     let QUO, REM, MAX;
 
     if(size == Sizes.b){
-        buffer[NUMR] = cpu.AX.Value;
+        buffer2[0] = cpu.AX.Value;
         QUO = cpu.AL;
         REM = cpu.AH;
-        MAX = 0x7F;
     }
     else {
-        buffer[NUMR] = (cpu.DX.Value << 8) | cpu.AX.Value;
+        buffer2[0] = (cpu.DX.Value << 16) | cpu.AX.Value;
         QUO = cpu.AX;
         REM = cpu.DX;
-        MAX = 0x7FFF;
     }
 
-    sbuffer[TMP] = sbuffer[NUMR];
-    if(sbuffer[DIVR] == 0)   throw Error("DIV 0");
-    let t  =  Math.floor(sbuffer[NUMR] / sbuffer[DIVR]);
-    if((t > MAX && t > 0) || (t < 0 - MAX - 1 && t < 0 ) ){
+
+    if(sbuffer2[0] == 0)   throw Error("DIV 0");
+    let tmp = Math.floor(sbuffer2[0] / sbuffer[0]);
+    if(tmp < 0) tmp++; //Fix Negative result
+    sbuffer[1]  =  tmp;
+    if(sbuffer[1] !== tmp ){ //Check LIMIT
         throw Error("DIV 0"); //TODO Internal Function For Exception
     }
-    QUO.Value = Math.floor(sbuffer[NUMR] / sbuffer[DIVR]);
-    sbuffer[TMP] = sbuffer[NUMR] % sbuffer[DIVR];
-    REM.Value = buffer[TMP];
+    QUO.Value = buffer[1];
+    sbuffer[0] = sbuffer2[0] % sbuffer[0]
+
+    REM.Value = buffer[0];
 }
 export const IDIV = new Instruction("IDIV", /IDIV 1/, [/1111011(?<w>[01])/,
     /(?<mod>[01]{2})111(?<rm>[01]{3})/], idiv)
 
+function imul(cpu, args){
+    let src = cpu.getByRM(args.get('rm'), args.get('mod'), args.get('suffix'), args.get('w') ? Sizes.w : Sizes.b);
+    let size = args.get('w') ? Sizes.w : Sizes.b;
+    let buffer = size == Sizes.w ? new Uint16Array(2) : new Uint8Array(2);
+    let sbuffer = size == Sizes.w ? new Int16Array(buffer.buffer) : new Int8Array(buffer.buffer);
+    let buffer2 = size == Sizes.w ? new Uint32Array(1) : new Uint16Array(1);
+    let sbuffer2 = size == Sizes.w ? new Int32Array(buffer2.buffer) : new Int16Array(buffer2.buffer);
+
+    let LSRC, RSRC, DEST;
+    if(size == Sizes.b){
+        LSRC = cpu.AL;
+        RSRC = src;
+        DEST = [cpu.AH];
+    }
+    else{
+        LSRC = cpu.AX;
+        RSRC = src;
+        DEST = [cpu.AX, cpu.DX];
+    }
+    buffer[0] = LSRC.Value;
+    buffer[1] = RSRC.Value;
+    sbuffer2[0] = sbuffer[0] * sbuffer[1];
+    if(DEST.length == 2){
+        DEST[0].Value = buffer2[0] & 0xFFFF;
+        DEST[1].Value = (buffer2[0] >> 16) & 0xFFFF;
+    }
+    else {
+        DEST[0].Value = buffer2[0];
+    }
+    cpu.CF.Value = sbuffer2[0] !==  sbuffer[0] * sbuffer[1];
+    cpu.OF.Value = cpu.CF.Value;
+}
+
+export const IMUL = new Instruction("IMUL", /IMUL 1/, [/1111011(?<w>[01])/,
+        /(?<mod>[01]{2})101(?<rm>[01]{3})/], imul)
+
+function in_(cpu, args){
+    let SRC, DEST;
+    let port = args.has('p')? cpu.DX.Value :  args.get('port') ;
+    if(args.has('w')){
+        SRC =  cpu.OUT(port+1) << 8 | cpu.OUT(port);
+        DEST = cpu.AX;
+    }
+    else {
+        SRC = cpu.OUT(port);
+        DEST = cpu.AL;
+    }
+    DEST.Value = SRC;
+}
+
+export const IN = new Instruction("IN", /IN 1/, [/1110(?<p>[01])10(?<w>[01])/], in_);
+
+function inc(cpu, args){
+    let dest:AddressValue;
+    let size:Sizes;
+    if(args.has('w')) {
+        dest = cpu.getByRM(args.get('rm'), args.get('mod'), args.get('suffix'), args.get('w') ? Sizes.w : Sizes.b);
+        size = args.get('w') ? Sizes.w : Sizes.b;
+    }
+    else
+    {
+        dest = args.get('reg');
+        size = args.get('reg').Size;
+    }
+
+    dest.Value -= -1;
+    cpu.AF.Value = (dest.Value & 0x0F) === 0x0F;
+    cpu.PF.Value = checkParity(dest.Value);
+    cpu.ZF.Value = dest.Value == 0;
+    if(size == Sizes.b){
+        cpu.OF.Value = dest.Value === 0x7F;
+        cpu.SF.Value = (dest.Value & 0x80) !== 0;
+    }
+    else {
+        cpu.OF = dest.Value = 0x7FFF;
+        cpu.SF.Value = (dest.Value & 0x8000) !== 0;
+    }
+}
+export const INC = [new Instruction("INC", /INC 1/, [/1111111(?<w>[01])/,
+    /(?<mod>[01]{2})000(?<rm>[01]{3})/], inc),
+    new Instruction("INC", /INC 2/, [/01000(?<reg>[01]{3})/], inc)
+]
+
+function int(cpu, args){
+    cpu.SP.Value -= 2;
+    let res = cpu.FLAGS;
+    cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [res & 0xFF, res >> 8 ])
+    cpu.IF.Value = false;
+    cpu.TF.Value = false;
+    cpu.SP.Value -= 2;
+    res = cpu.CS.Value;
+    cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [res & 0xFF, res >> 8 ])
+    let type = args.get('type');
+    cpu.CS.Value = type * 4 + 2;
+    res = cpu.IP.Value;
+    cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [res & 0xFF, res >> 8 ])
+    cpu.IP.Value = type * 4;
+}
+export const INT = new Instruction("INT", /INT 1/, [/1100110(?<w>[01])/], int)
+
+function into(cpu){
+    if(cpu.OF.Value) {
+        cpu.SP.Value -= 2;
+        let res = cpu.FLAGS;
+        cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [res & 0xFF, res >> 8])
+        cpu.IF.Value = false;
+        cpu.TF.Value = false;
+        cpu.SP.Value -= 2;
+        res = cpu.CS.Value;
+        cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [res & 0xFF, res >> 8])
+        cpu.CS.Value = 0x12;
+        res = cpu.IP.Value;
+        cpu.setMEM(cpu.SP.Value, cpu.SS.Value, [res & 0xFF, res >> 8])
+        cpu.IP.Value = 0x10;
+    }
+}
+export const INTO = new Instruction("INTO", /INTO 1/, [/11001110/], into)
+function iret(cpu){
+    cpu.IP.Value = cpu.getMEM(cpu.SP.Value, cpu.SS.Value, Sizes.w);
+    cpu.SP.Value += 2;
+    cpu.CS.Value = cpu.getMEM(cpu.SP.Value, cpu.SS.Value, Sizes.w);
+    cpu.SP.Value += 2;
+    cpu.FLAGS.Value = cpu.getMEM(cpu.SP.Value, cpu.SS.Value, Sizes.w);
+    cpu.SP.Value += 2;
+}
+export const IRET = new Instruction("IRET", /IRET 1/, [/11001111/], iret)
+
+function ja(cpu, args){
+    console.log(args);
+}
+
+function jnb(cpu, args){
+    console.log(args);
+}
+
+function jb(cpu, args){
+    console.log(args);
+}
+
+function jbe(cpu, args){
+    console.log(args);
+}
+
+function jc(cpu, args){
+    console.log(args);
+}
+
+function jcxz(cpu, args){
+    console.log(args);
+}
+
+function je(cpu, args){
+    console.log(args);
+}
+
+function jg(cpu, args){
+    console.log(args);
+}
+
+function jge(cpu, args){
+    console.log(args);
+}
+
+function jl(cpu, args){
+    console.log(args);
+}
 
 
+function jle(cpu, args){
+    console.log(args);
+}
+
+function jng(cpu, args){
+    console.log(args);
+}
+
+function jnc(cpu, args){
+    console.log(args);
+}
+
+function jne(cpu, args){
+    console.log(args);
+}
+
+function jnz(cpu, args){
+    console.log(args);
+}
+
+function jno(cpu, args){
+    console.log(args);
+}
+
+function jns(cpu, args){
+    console.log(args);
+}
+
+function jnp(cpu, args){
+    console.log(args);
+}
+
+function jo(cpu, args){
+    console.log(args);
+}
+
+function js(cpu, args){
+    console.log(args);
+}
+
+function jpe(cpu, args){
+    console.log(args);
+}
+
+
+export const JA = new Instruction("JA", /JA 1/,    [/01110111/], ja);
+export const JNBE = new Instruction("JNBE", /JNBE 1/,    [/01110111/], ja);
+export const JAE = new Instruction("JAE", /JAE 1/,   [/01110011/], jnb);
+export const JNB = new Instruction("JNB", /JNB 1/,   [/01110011/], jnb);
+export const JB = new Instruction("JB", /JB 1/,      [/01110010/], jb);
+export const JNAE = new Instruction("JNAE", /JNAE 1/,      [/01110010/], jb);
+export const JBE = new Instruction("JBE", /JBE 1/,   [/01110110/], jbe);
+export const JNA = new Instruction("JNA", /JNA 1/,   [/01110110/], jbe);
+export const JC = new Instruction("JC", /JC 1/,      [/01110010/], jc);
+export const JCXZ = new Instruction("JCXZ", /JCXZ 1/,[/11100011/], jcxz);
+export const JE = new Instruction("JE", /JE 1/,[/01110100/], je);
+export const JZ = new Instruction("JZ", /JZ 1/,[/01110100/], je);
+export const JG = new Instruction("JG", /JG 1/,[/01111111/], jg);
+export const JNLE = new Instruction("JNLE", /JNLE 1/,[/01111111/], jg);
+export const JGE = new Instruction("JGE", /JGE 1/,[/01111101/], jge);
+export const JNL = new Instruction("JNL", /JNL 1/,[/01111101/], jge);
+export const JL = new Instruction("JL", /JL 1/,[/01111100/], jl);
+export const JNGE = new Instruction("JNGE", /JNGE 1/,[/01111100/], jl);
+export const JLE = new Instruction("JLE", /JLE 1/,[/01111110/], jle);
+export const JNG = new Instruction("JNG", /JNG 1/,[/01111110/], jle);
+export const JNC = new Instruction("JNC", /JNC 1/,[/01110011/], jnc);
+export const JNE = new Instruction("JNE", /JNE 1/,[/01110101/], jne);
+export const JNZ = new Instruction("JNZ", /JNZ 1/,[/01110101/], jnz);
+export const JNO = new Instruction("JNO", /JNO 1/,[/01110001/], jno);
+export const JNS = new Instruction("JNS", /JNS 1/,[/01111001/], jns);
+export const JNP = new Instruction("JNP", /JNP 1/,[/01111101/], jnp);
+export const JPO = new Instruction("JPO", /JPO 1/,[/01111101/], jnp);
+export const JO = new Instruction("JO", /JO 1/,[/01110000/], jo);
+export const JP = new Instruction("JP", /JP 1/,[/01111010/], jpe);
+export const JPE = new Instruction("JPE", /JPE 1/,[/01111111/], jpe);
+export const JS = new Instruction("JS", /JS 1/,[/01111000/], js);
 ///ESC ===
 function esc(cpu, args){
     //TODO Escape

@@ -11,6 +11,15 @@ export default class Cpu{
     #ram = 256;
     #mem8 = new Uint8Array(this.#ram)
     #state: SysState = SysState.RUNNING
+    #ports: number[] = [];
+    IN(port, value:number){
+        this.#ports[port] = value;
+    };
+    OUT(port):number{
+        if(this.#ports[port]) return this.#ports[port];
+        console.warn("Not Used Port!");
+        return  -1;
+    }
     readonly AL = new Reg(this.#reg8, Registers.AL);
     readonly AH = new Reg(this.#reg8, Registers.AH)
     readonly BL = new Reg(this.#reg8, Registers.BL)
