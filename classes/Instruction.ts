@@ -94,21 +94,19 @@ class Instruction{
                 size += 1;
             }
         }
-        else if(n[offset] == 0x77 || n[offset] == 0x72
-           || n[offset] == 0x73 || n[offset] == 0x76
-           || n[offset] == 0x74 || n[offset] == 0x7F
-           || n[offset] == 0xE3 || n[offset] == 0x7D
-           || n[offset] == 0x7C || n[offset] == 0x7E
-           || n[offset] == 0x75 || n[offset] == 0x71
-           || n[offset] == 0x79 || n[offset] == 0x7D
-           || n[offset] == 0x70 || n[offset] == 0x7A
-           || n[offset] == 0x78
+        else if((n[offset] >= 0x70 && n[offset] < 0x80) || n[offset] == 0xE3//JA .. JE, JZ, JNE
     ){
             let addr = n[size + offset];
+            let sbuf = new Int8Array(1);
+            let buf = new Uint8Array(sbuf.buffer);
+            let sbuf2 = new Int16Array(1);
+            let buf2 = new Uint16Array(sbuf2.buffer);
             size += 1;
-            addr += size + offset & 0xFF;
-            str += addr.toString(16).padStart(4,'0');
-            args.set('addr', addr);
+            buf[0] = addr;
+            addr = sbuf[0];
+            sbuf2[0] = (offset + addr + size);
+            str += buf2[0].toString(16).padStart(4,'0');
+            args.set('addr', buf2[0]);
         }
         else if(n[offset] == 0xE8){
             let addr = (n[size + 1 + offset] << 8) + n[size + offset];
@@ -118,7 +116,27 @@ class Instruction{
             args.set('isFar', false);
             args.set('addr', addr);
         }
-        else if(n[offset] == 0x9A){
+        else if(n[offset] == 0xE9){
+            let addr = (n[size + 1 + offset] << 8) + n[size + offset];
+            size += 2;
+            addr += size + offset;
+            str += addr.toString(16).padStart(4,'0');
+            args.set('isFar', false);
+            args.set('addr', addr);
+        }
+        else if(n[offset] == 0xEB){
+            let addr =  n[size + offset];
+            size += 1;
+            let buf = new Uint8Array(1);
+            let sbuf = new Int8Array(buf.buffer);
+            let buf2 = new Uint16Array(1);
+            buf[0] = addr;
+            buf2[0] = offset + size + sbuf[0];
+            str += buf2[0].toString(16).padStart(4,'0');
+            args.set('isFar', false);
+            args.set('addr', buf2[0]);
+        }
+        else if(n[offset] == 0x9A || n[offset] == 0xEA){
             let addr = (n[size + 1 + offset] << 8) + n[size + offset];
             let segm = (n[size + 3 + offset] << 8) + n[size + 2 + offset];
             size += 4;
@@ -127,8 +145,17 @@ class Instruction{
             args.set('addr', addr);
             args.set('seg', segm);
         }
-        else if(n[offset] == 0xFF && (n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})010(?<rm>[01]{3})/) != null || n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})011(?<rm>[01]{3})/) != null )){
-            args.set('isFar', n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})011(?<rm>[01]{3})/) != null);
+        else if(n[offset] == 0xFF &&
+            (
+                n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})010(?<rm>[01]{3})/) != null ||
+                n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})011(?<rm>[01]{3})/) != null ||
+                n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})100(?<rm>[01]{3})/) != null ||
+                n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})101(?<rm>[01]{3})/) != null
+            )){
+            args.set('isFar',
+                n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})011(?<rm>[01]{3})/) != null ||
+                n[offset + 1].toString(2).padStart(8, '0').match(/(?<mod>[01]{2})101(?<rm>[01]{3})/) != null
+            );
             args.set('isFF', true);
             let rm = (config.get('rm') as RM);
             let mod = (config.get('mod') as Mod);
@@ -136,16 +163,16 @@ class Instruction{
             size += 1;
             if (mod?.Value === 1) {
                 let suffix = n[size + offset].toString(16).padStart(2, '0');
-                size += 1;
                 rmn = rmn.substring(0, rmn.length - 1) + "+" + suffix + "]";
                 args.set('suffix', n[size + offset]);
+                size += 1;
             }
             if (mod?.Value === 2) {
                 let suffix = n[size + 1 + offset].toString(16).padStart(2, '0')
                     + n[size + offset].toString(16).padStart(2, '0')
-                size += 2;
                 args.set('suffix', (n[size+1+offset] << 8) + n[size+offset]);
                 rmn = rmn.substring(0, rmn.length - 1) + "+" + suffix + "]";
+                size += 2;
             }
             if (mod?.Value === 3) {
                 let w = config.get('w');
@@ -169,16 +196,16 @@ class Instruction{
                 args.set('suffix', 0);
                 if (mod.Value == 1) {
                     let suffix = n[size + offset].toString(16).padStart(2, '0');
-                    size += 1;
                     rmn = rmn.substring(0, rmn.length - 1) + "+" + suffix + "]";
                     args.set('suffix', n[size + offset]);
+                    size += 1;
                 }
                 if (mod.Value == 2) {
                     let suffix = n[size + 1 + offset].toString(16).padStart(2, '0')
                         + n[size + offset].toString(16).padStart(2, '0')
-                    size += 2;
                     args.set('suffix', (n[size+1+offset] << 8) + n[size+offset]);
                     rmn = rmn.substring(0, rmn.length - 1) + "+" + suffix + "]";
+                    size += 2;
                 }
                 if (mod.Value == 3) {
                     let w = config.get('w');
@@ -229,12 +256,12 @@ class Instruction{
             else if (config.has('w')) {
                 if (config.get('w')) {
                     str = "AX, " + n[size + 1 + offset]?.toString(16).padStart(2, '0') + n[size + offset]?.toString(16).padStart(2, '0');
-                    size += 2;
                     args.set('wv',  (n[size + 1 + offset] << 8) + n[size + offset])
+                    size += 2;
                 } else {
                     str = "AL, " + n[size + offset]?.toString(16).padStart(2, '0');
-                    size += 1;
                     args.set('wv', n[size + offset]);
+                    size += 1;
                 }
             }
 
@@ -292,7 +319,7 @@ class Instruction{
             });
         }
         if(this.#run)
-            this.#run(cpu, args);
+            this.#run.bind(this, cpu, args)();
     }
 }
 export const AAA = new Instruction("AAA",/AAA/, [/00110111/], (cpu) => {
@@ -492,25 +519,33 @@ function call(cpu, args:Map<string, any>){
         let rm = (args.get('rm') as RM);
         let mod = (args.get('mod') as Mod);
         let a = cpu.getByRM(rm, mod, 0, args.has('isFar') && args.get('isFar')? Sizes.d: Sizes.w);
+
         if (args.has('isFar') && args.get('isFar')) {
             cpu.SP.Value -= 2;
-            let segs = [a >> 16 & 0xFF, (a >> 24) & 0xFF];
+            let o = cpu.CS.Value;
+            let segs =  [o & 0xFF, (o >> 8) & 0xFF];
             cpu.setMEM(cpu.SP.Value, cpu.SS.Value, segs)
+            cpu.SP.Value = (a.Value >> 16) & 0xFFFF;
         }
         cpu.SP.Value -= 2;
-        let addrs = [a & 0xFF, (a >> 8) & 0xFF];
+        let o = cpu.IP.Value;
+        let addrs = [o & 0xFF, (o >> 8) & 0xFF];
         cpu.setMEM(cpu.SP.Value, cpu.SS.Value, addrs)
+        cpu.IP.Value = a.Value & 0xFFFF;
     }
     else {
         if (args.has('isFar') && args.get('isFar')) {
             cpu.SP.Value -= 2;
-            let seg = args.get('seg');
-            let segs = [seg & 0xFF, (seg >> 8) & 0xFF];
+            let o = cpu.CS.Value;
+            let segs =  [o & 0xFF, (o >> 8) & 0xFF];
             cpu.setMEM(cpu.SP.Value, cpu.SS.Value, segs)
+            cpu.CS.Value = args.get('seg');
         }
         cpu.SP.Value -= 2;
         let addr = args.get('addr');
-        let addrs = [addr & 0xFF, (addr >> 8) & 0xFF];
+        let o = cpu.IP.Value;
+        let addrs = [o & 0xFF, (o >> 8) & 0xFF];
+        cpu.IP.Value = addr;
         cpu.setMEM(cpu.SP.Value, cpu.SS.Value, addrs)
     }
 
@@ -866,123 +901,156 @@ function iret(cpu){
 }
 export const IRET = new Instruction("IRET", /IRET 1/, [/11001111/], iret)
 
-function ja(cpu, args){
-    console.log(args);
+function j(cpu, args){
+    let b = false;
+    switch(this.Name) {
+        case "JA":
+        case "JNBE":
+            b = !(cpu.CF.Value && cpu.ZF.Value);
+            break;
+        case "JAE":
+        case "JNB":
+            b = !cpu.CF.Value;
+            break;
+        case "JB":
+        case "JNAE":
+            b = cpu.CF.Value;
+            break;
+        case "JBE":
+        case "JNA":
+            b = cpu.CF.Value || cpu.ZF.Value;
+            break;
+        case "JC":
+            b = cpu.CF.Value;
+            break;
+        case "JCXZ":
+            b = cpu.CX.Value == 0;
+            break;
+        case "JE":
+        case "JZ":
+            b = cpu.ZF.Value;
+            break;
+        case "JG":
+        case "JNLE":
+            b = cpu.SF.Value == cpu.OF.Value && !cpu.ZF.Value
+            break;
+        case "JGE":
+        case "JNL":
+            b = cpu.SF.Value == cpu.OF.Value
+            break;
+        case "JL":
+        case "JNGE":
+            b = cpu.SF.Value != cpu.OF.Value
+            break;
+        case "JLE":
+        case "JNG":
+            b = cpu.SF.Value != cpu.OF.Value || cpu.ZF.Value
+            break;
+        case "JNC":
+            b = !cpu.CF.Value
+            break;
+        case "JNE":
+        case "JNZ":
+            b = !cpu.ZF.Value
+            break;
+        case "JNO":
+            b = !cpu.OF.Value
+            break;
+        case "JNS":
+            b = !cpu.SF.Value
+            break;
+        case "JNP":
+        case "JPO":
+            b = !cpu.PF.Value
+            break;
+        case "JO":
+            b = cpu.OF.Value
+            break;
+        case "JP":
+        case "JPE":
+            b = cpu.PF.Value
+            break;
+        case "JS":
+            b = cpu.SF.Value
+            break;
+    }
+    if(b){
+        cpu.IF.Value = args.get("addr");
+    }
+
 }
 
-function jnb(cpu, args){
-    console.log(args);
+export const JA = new Instruction("JA", /JA 1/,    [/01110111/], j);
+export const JNBE = new Instruction("JNBE", /JNBE 1/,    [/01110111/], j);
+export const JNB = new Instruction("JNB", /JNB 1/,   [/01110011/], j);
+export const JAE = new Instruction("JAE", /JAE 1/,   [/01110011/], j);
+export const JB = new Instruction("JB", /JB 1/,      [/01110010/], j);
+export const JNAE = new Instruction("JNAE", /JNAE 1/,      [/01110010/], j);
+export const JBE = new Instruction("JBE", /JBE 1/,   [/01110110/], j);
+export const JNA = new Instruction("JNA", /JNA 1/,   [/01110110/], j);
+export const JC = new Instruction("JC", /JC 1/,      [/01110010/], j);
+export const JCXZ = new Instruction("JCXZ", /JCXZ 1/,[/11100011/], j);
+export const JE = new Instruction("JE", /JE 1/,[/01110100/], j);
+export const JZ = new Instruction("JZ", /JZ 1/,[/01110100/], j);
+export const JG = new Instruction("JG", /JG 1/,[/01111111/], j);
+export const JNLE = new Instruction("JNLE", /JNLE 1/,[/01111111/], j);
+export const JNL = new Instruction("JNL", /JNL 1/,[/01111101/], j);
+export const JGE = new Instruction("JGE", /JGE 1/,[/01111101/], j);
+export const JL = new Instruction("JL", /JL 1/,[/01111100/], j);
+export const JNGE = new Instruction("JNGE", /JNGE 1/,[/01111100/], j);
+export const JLE = new Instruction("JLE", /JLE 1/,[/01111110/], j);
+export const JNG = new Instruction("JNG", /JNG 1/,[/01111110/], j);
+export const JNC = new Instruction("JNC", /JNC 1/,[/01110011/], j);
+export const JNE = new Instruction("JNE", /JNE 1/,[/01110101/], j);
+export const JNZ = new Instruction("JNZ", /JNZ 1/,[/01110101/], j);
+export const JNO = new Instruction("JNO", /JNO 1/,[/01110001/], j);
+export const JNS = new Instruction("JNS", /JNS 1/,[/01111001/], j);
+export const JNP = new Instruction("JNP", /JNP 1/,[/01111011/], j);
+export const JPO = new Instruction("JPO", /JPO 1/,[/01111011/], j);
+export const JO = new Instruction("JO", /JO 1/,[/01110000/], j);
+export const JP = new Instruction("JP", /JP 1/,[/01111010/], j);
+export const JPE = new Instruction("JPE", /JPE 1/,[/01111111/], j);
+export const JS = new Instruction("JS", /JS 1/,[/01111000/], j);
+function jmp(cpu, args){
+    if(args.get('isFar')){
+        if(args.has('mod')){
+            let rm = (args.get('rm') as RM);
+            let mod = (args.get('mod') as Mod);
+            let a = cpu.getByRM(rm, mod, 0, Sizes.d);
+            cpu.IP.Value = a & 0xFFFF;
+            cpu.CS.Value = (a >> 16) & 0xFFFF;
+        }
+        else {
+            cpu.IP.Value = args.get('addr');
+            cpu.CS.Value = args.get('seg');
+        }
+    }
+    else {
+        if(args.has('mod')){
+            let rm = (args.get('rm') as RM);
+            let mod = (args.get('mod') as Mod);
+            let a = cpu.getByRM(rm, mod, 0, Sizes.w);
+            cpu.IP.Value = a;
+        }
+        else {
+            cpu.IP.Value = args.get('addr');
+        }
+    }
+}
+export const JMP = [
+    new Instruction("JMP", /JMP 1/, [/11101001/], jmp),
+    new Instruction("JMP", /JMP 1/, [/11101011/], jmp),
+    new Instruction("JMP", /JMP 1/, [/11101010/], jmp),
+    new Instruction("JMP", /JMP 1/, [/11111111/, /(?<mod>[01]{2})100(?<rm>[01]{3})/ ], jmp),
+    new Instruction("JMP", /JMP 1/, [/11111111/, /(?<mod>[01]{2})101(?<rm>[01]{3})/ ], jmp), //TODO ??SG = SG+size
+]
+
+function lahf(cpu){
+    let str = `${cpu.SF.Num}${cpu.ZF.Num}0${cpu.AF.Num}0${cpu.PF.Num}1${cpu.CF.Num}`;
+    cpu.AH.Value = parseInt(str, 2);
 }
 
-function jb(cpu, args){
-    console.log(args);
-}
-
-function jbe(cpu, args){
-    console.log(args);
-}
-
-function jc(cpu, args){
-    console.log(args);
-}
-
-function jcxz(cpu, args){
-    console.log(args);
-}
-
-function je(cpu, args){
-    console.log(args);
-}
-
-function jg(cpu, args){
-    console.log(args);
-}
-
-function jge(cpu, args){
-    console.log(args);
-}
-
-function jl(cpu, args){
-    console.log(args);
-}
-
-
-function jle(cpu, args){
-    console.log(args);
-}
-
-function jng(cpu, args){
-    console.log(args);
-}
-
-function jnc(cpu, args){
-    console.log(args);
-}
-
-function jne(cpu, args){
-    console.log(args);
-}
-
-function jnz(cpu, args){
-    console.log(args);
-}
-
-function jno(cpu, args){
-    console.log(args);
-}
-
-function jns(cpu, args){
-    console.log(args);
-}
-
-function jnp(cpu, args){
-    console.log(args);
-}
-
-function jo(cpu, args){
-    console.log(args);
-}
-
-function js(cpu, args){
-    console.log(args);
-}
-
-function jpe(cpu, args){
-    console.log(args);
-}
-
-
-export const JA = new Instruction("JA", /JA 1/,    [/01110111/], ja);
-export const JNBE = new Instruction("JNBE", /JNBE 1/,    [/01110111/], ja);
-export const JAE = new Instruction("JAE", /JAE 1/,   [/01110011/], jnb);
-export const JNB = new Instruction("JNB", /JNB 1/,   [/01110011/], jnb);
-export const JB = new Instruction("JB", /JB 1/,      [/01110010/], jb);
-export const JNAE = new Instruction("JNAE", /JNAE 1/,      [/01110010/], jb);
-export const JBE = new Instruction("JBE", /JBE 1/,   [/01110110/], jbe);
-export const JNA = new Instruction("JNA", /JNA 1/,   [/01110110/], jbe);
-export const JC = new Instruction("JC", /JC 1/,      [/01110010/], jc);
-export const JCXZ = new Instruction("JCXZ", /JCXZ 1/,[/11100011/], jcxz);
-export const JE = new Instruction("JE", /JE 1/,[/01110100/], je);
-export const JZ = new Instruction("JZ", /JZ 1/,[/01110100/], je);
-export const JG = new Instruction("JG", /JG 1/,[/01111111/], jg);
-export const JNLE = new Instruction("JNLE", /JNLE 1/,[/01111111/], jg);
-export const JGE = new Instruction("JGE", /JGE 1/,[/01111101/], jge);
-export const JNL = new Instruction("JNL", /JNL 1/,[/01111101/], jge);
-export const JL = new Instruction("JL", /JL 1/,[/01111100/], jl);
-export const JNGE = new Instruction("JNGE", /JNGE 1/,[/01111100/], jl);
-export const JLE = new Instruction("JLE", /JLE 1/,[/01111110/], jle);
-export const JNG = new Instruction("JNG", /JNG 1/,[/01111110/], jle);
-export const JNC = new Instruction("JNC", /JNC 1/,[/01110011/], jnc);
-export const JNE = new Instruction("JNE", /JNE 1/,[/01110101/], jne);
-export const JNZ = new Instruction("JNZ", /JNZ 1/,[/01110101/], jnz);
-export const JNO = new Instruction("JNO", /JNO 1/,[/01110001/], jno);
-export const JNS = new Instruction("JNS", /JNS 1/,[/01111001/], jns);
-export const JNP = new Instruction("JNP", /JNP 1/,[/01111101/], jnp);
-export const JPO = new Instruction("JPO", /JPO 1/,[/01111101/], jnp);
-export const JO = new Instruction("JO", /JO 1/,[/01110000/], jo);
-export const JP = new Instruction("JP", /JP 1/,[/01111010/], jpe);
-export const JPE = new Instruction("JPE", /JPE 1/,[/01111111/], jpe);
-export const JS = new Instruction("JS", /JS 1/,[/01111000/], js);
+export const LAHF = new Instruction("LAHF", /LAHF 1/, [/10011111/], lahf)
 ///ESC ===
 function esc(cpu, args){
     //TODO Escape

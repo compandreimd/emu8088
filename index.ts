@@ -143,43 +143,48 @@ function f() {
         findInst([parseInt('01001' + reg.toString(2).padStart(3, '0'), 2),
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
         ]);
+    console.log("===INT===")
+    findInst([0b11001100])
+    findInst([0b11001101, 0x10])
+    console.log("===INT0===")
+    findInst([0b11001110, 0x10])
+    console.log("===IRET==")
+    findInst([0b11001111, 0x10])
+    console.log(`===JXX===`)
+    findInst([0x70, 0xFE]) //JO  OF = 1
+    findInst([0x71, 0xFD]) //JNO OF = 0
+    findInst([0x72, 0x00]) //JB  CF = 1
+    findInst([0x73, 0x00]) //JNB CF = 0
+    findInst([0x74, 0x00]) //JE  ZF = 1
+    findInst([0x75, 0x00]) //JNE ZF = 0
+    findInst([0x76, 0x00]) //JBE CF | ZF = 1
+    findInst([0x77, 0x00]) //JA  CF & ZF = 0
+    findInst([0x78, 0x00]) //JS  SF = 1
+    findInst([0x79, 0x00]) //JNS SF = 0
+    findInst([0x7A, 0x00]) //JP  OF = 0
+    findInst([0x7B, 0x00]) //JNP PF = 0
+    findInst([0x7C, 0x00]) //JL  SF <> OF
+    findInst([0x7D, 0x00]) //JNL SF = OF
+    findInst([0x7E, 0x00]) //JLE SF <> OF | ZF = 1
+    findInst([0x7F, 0x00]) //JG   (SF = OF) & (ZF = 0)
+    findInst([0xE3, 0x00]) //JCXZ  CX = 0
+    console.log(`==JMP===`)
+    findInst([0b11101001, 2, 2])
+    findInst([0b11101011, 0xCD])
+    findInst([0b11111111, 0b10100000, 10, 20])
+    findInst([0b11101010, 1, 2, 3,4])
+    findInst([0b11111111, 0b10101000, 20, 10])
+
 
 }
-cpu.AX.Value = 12202;
+cpu.AX.Value = 0;
 cpu.BX.Value = 2;
-cpu.CX.Value = 24021;
+cpu.CX.Value = 0;
 cpu.DX.Value = 0;
-findInst([0b01110010, 0xFE, 0x20]);
-findInst( [0b01110111, 0x2, 0x20]);
-findInst([0b01110111, 0x4,0x20]);
-findInst([0b01110011, 0x6,0x20]);
-findInst([0b01110011, 0x8,0x20]);
-findInst([0b01110010, 0x10,0x20]);
-findInst([0b01110010, 0x10,0x20]);
-findInst([0b01110110, 0x10,0x20]);
-findInst([0b01110110, 0x10,0x20]);
-findInst( [0b01110010, 0x10,0x20]);
-findInst([0b11100011, 0x10,0x20]);
-findInst([0b01110100, 0x10,0x20]);
-findInst([0b01110100, 0x10,0x20]);
-findInst([0b01111111, 0x10,0x20]);
-findInst([0b01111111, 0x10,0x20]);
-findInst([0b01111101, 0x10,0x20]);
-findInst([0b01111101, 0x10,0x20]);
-findInst([0b01111100, 0x10,0x20]);
-findInst([0b01111100, 0x10,0x20]);
-findInst([0b01111110, 0x10,0x20]);
-findInst([0b01111110, 0x10,0x20]);
-findInst([0b01110011, 0x10,0x20]);
-findInst([0b01110101, 0x10,0x20]);
-findInst([0b01110101, 0x10,0x20]);
-findInst([0b01110001, 0x10,0x20]);
-findInst([0b01111001, 0x10,0x20]);
-findInst([0b01111101, 0x10,0x20]);
-findInst([0b01111101, 0x10,0x20]);
-findInst([0b01110000, 0x10,0x20]);
-findInst([0b01111010, 0x10,0x20]);
-findInst([0b01111111, 0x10,0x20]);
-findInst([0b01111000, 0x10,0x20]);
-//findInst([0b11001100])()
-//findInst([0b11001101, 90])()
+findInst([0b10011111, 0b11101000, 20, 10])()
+
+console.log(cpu.AH.Value.toString(16).padStart(2, '0'));
+//f()
+
+
+
