@@ -28,8 +28,9 @@ TMP/
 target/
 dist/
 
-# JetBrains IDE
+# JetBrains IDE & VS
 .idea/
+.vscode/
 
 # Unit test reports
 TEST*.xml
@@ -53,3 +54,5 @@ Thumbs.db
 *.mov
 *.wmv
 
+# Configuration & Enviroment
+.env

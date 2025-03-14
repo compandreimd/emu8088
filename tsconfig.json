@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
+    "target": "es5",
+    "module": "commonjs",
+    "strict": true,
     "esModuleInterop": true,
-    "target": "ES2022",
-    "moduleResolution": "Node",
+    "skipLibCheck": true,
     "sourceMap": true,
-    "outDir": "dist",
-    "allowJs": true
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "resolveJsonModule": true
   },
-  "lib": ["es2015"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
