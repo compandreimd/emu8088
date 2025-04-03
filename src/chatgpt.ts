@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import any = jasmine.any;
+
 
 const openai = new OpenAI({apiKey: process.env.CHATGPT_KEY});
 async function main(){
@@ -13,3 +15,4 @@ async function main(){
 main().then(() => {
     console.log("END!");
 });
+

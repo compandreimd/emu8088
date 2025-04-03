@@ -7,11 +7,17 @@ describe('CPU functionality', () => {
         // Perform any other setup needed for testing
     });
     test('Test Get', () => {
-        // expect(memory[0]/* some condition */).toBe(0);
+        expect(memory.get(0)/* some condition */).toBe(0);
+        expect(memory.get(1)/* some condition */).toBe(0);
         // Add more assertions as needed
     });
     test('Test Set', () => {
         // memory[0] = 10;
+        let x = Math.floor(Math.random() * 0xFF);
+        memory.set(0, x);
+        memory.set(1, 0x1200 + x);
+        expect(memory.get(0)/* some condition */).toBe(x);
+        expect(memory.get(1)/* some condition */).toBe(x);
         // expect(memory[0]/* some condition */).toBe(10);
         // Add more assertions as needed
     });
