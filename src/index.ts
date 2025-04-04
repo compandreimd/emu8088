@@ -75,7 +75,20 @@ import TCPU, {
     LODSSet,
     LOOPSet,
     LOOPESet,
-    LOOPZSet, LOOPNZSet, LOOPNESet, MOVSet,
+    LOOPZSet,
+    LOOPNZSet,
+    LOOPNESet,
+    MOVSet,
+    MOVSSet,
+    MULSet,
+    NEGSet,
+    NOTSet,
+    NOPSet,
+    ORSet,
+    OUTSet,
+    POPSet,
+    POPFSet,
+    PUSHSet, PUSHFSet,
 } from "./devices/cpu/tcpu";
 let cpu = new TCPU('temp');
 
@@ -156,6 +169,18 @@ let tmp: ISetInstruction<TCPU>[] = [
     new LOOPNESet(cpu),
     new LOOPNZSet(cpu),
     new MOVSet(),
+    new MOVSSet(),
+    new MULSet(),
+    new NEGSet(),
+    new NOPSet(),
+    new NOTSet(),
+    new ORSet(),
+    new OUTSet(),
+    new POPSet(),
+    new POPFSet(),
+    new PUSHSet(),
+    new PUSHFSet(),
+
 ];
 
 function check(t: any, option?: {run?:boolean, data?:boolean}) {
@@ -189,5 +214,11 @@ function check(t: any, option?: {run?:boolean, data?:boolean}) {
     }
 }
 cpu.setMem16(0x1020)
-console.log(check(['10001110', '00 011 000', '00000000', '00100010'].map(x => x.replace(/\s+/mg, '')), {run: true}));
+//console.log(check(['10001110', '00 011 000', '00000000', '00100010'].map(x => x.replace(/\s+/mg, '')), {run: true}));
+cpu.AL = 0x12;
+cpu.AH = 0x11;
+cpu.ZF = 1;
+cpu.IF = 1;
+cpu.SP = 2;
+console.log(check('PUSHF', {run:true}));
 console.log(cpu.getMem16(0).toString(16))

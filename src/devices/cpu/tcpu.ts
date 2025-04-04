@@ -722,14 +722,16 @@ abstract class HelperSet<CPU extends TCPU> implements ISetInstruction<CPU> {
         let exec = this._execute.bind(config);
         return new DefInst(this.asm(config), this.bin(config), exec)
     }
-    protected static get_setCONST<CPU extends TCPU>(val:number){
-        return  {
+
+    protected static get_setCONST<CPU extends TCPU>(val: number) {
+        return {
             name: "CONST 0x" + val.toString(16),
             get value() {
                 return val;
             }
         }
     }
+
     protected static get_setReg<CPU extends TCPU>(cpu: CPU, w: boolean, reg: ALL | Reg8): GetterAndSetter {
         if (w)
             return {
@@ -751,6 +753,7 @@ abstract class HelperSet<CPU extends TCPU> implements ISetInstruction<CPU> {
             }
         }
     }
+
     protected static get_setAddr<CPU extends TCPU>(cpu: CPU, w: boolean, offset: number, seg?: number): GetterAndSetter {
         if (w)
             return {
@@ -790,6 +793,7 @@ abstract class HelperSet<CPU extends TCPU> implements ISetInstruction<CPU> {
             }
         }
     }
+
     protected static reg<CPU extends TCPU>(cpu: CPU, config: InstructionConfig) {
         return HelperSet.get_setReg(cpu, config.w.bin === '1', config.reg.arg);
     }
@@ -1403,6 +1407,7 @@ abstract class HelperSet<CPU extends TCPU> implements ISetInstruction<CPU> {
     }
 
 }
+
 const HZ: GetterAndSetter = {
     name: 'HZ',
     get value() {
@@ -3946,11 +3951,10 @@ export class MOVSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInst
         let dst: GetterAndSetter = HZ;
         switch (config._.asm) {
             case 'tr':
-                if(config.d.bin == '1'){
+                if (config.d.bin == '1') {
                     src = HelperSet.rm(cpu, config);
                     dst = HelperSet.reg(cpu, config);
-                }
-                else {
+                } else {
                     dst = HelperSet.rm(cpu, config);
                     src = HelperSet.reg(cpu, config);
                 }
@@ -3961,16 +3965,15 @@ export class MOVSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInst
                 break;
             case 'rm': {
                 src = HelperSet.get_setCONST(parseInt(config.val.asm!, 16))
-                dst = HelperSet.get_setReg(cpu, config.w.bin == '1', parseInt(config.reg.bin!,2))
+                dst = HelperSet.get_setReg(cpu, config.w.bin == '1', parseInt(config.reg.bin!, 2))
             }
                 break;
             case 'ea': {
-                if(config.d.bin == '1'){
-                    dst = HelperSet.get_setAddr(cpu, config.w_reg.bin == '1' , parseInt(config.ea.asm!, 16));
+                if (config.d.bin == '1') {
+                    dst = HelperSet.get_setAddr(cpu, config.w_reg.bin == '1', parseInt(config.ea.asm!, 16));
                     src = HelperSet.get_setReg(cpu, config.w_reg.bin == '1', ALL.AX)
-                }
-                else {
-                    src = HelperSet.get_setAddr(cpu, config.w_reg.bin == '1' , parseInt(config.ea.asm!, 16));
+                } else {
+                    src = HelperSet.get_setAddr(cpu, config.w_reg.bin == '1', parseInt(config.ea.asm!, 16));
                     dst = HelperSet.get_setReg(cpu, config.w_reg.bin == '1', ALL.AX)
                 }
                 console.log(dst, src);
@@ -3979,11 +3982,10 @@ export class MOVSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInst
             case 'sg': {
                 const seg = HelperSet.get_setReg(cpu, true, parseInt(config.seg.bin!, 2) + 8);
                 const rm = HelperSet.rm(cpu, config);
-                if(config.d.bin == '1'){
+                if (config.d.bin == '1') {
                     src = rm;
                     dst = seg;
-                }
-                else {
+                } else {
                     src = seg;
                     dst = rm;
                 }
@@ -4098,8 +4100,14 @@ export class MOVSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInst
                 "_": "fm"
             }),
 
-            new InstructionSet([`(?<code>MOV)\\s+(?<reg>${Reg8_Key.join('|')})\\s*,\\s*(?<val>[0-9A-F]{2})`], {_:'rm', w: '0'}),
-            new InstructionSet([`(?<code>MOV)\\s+(?<reg>${Reg16_Key.join('|')})\\s*,\\s*(?<val>[0-9A-F]{2})(?<val2>[0-9A-F]{2})`], {_:'rm', w: '1'}),
+            new InstructionSet([`(?<code>MOV)\\s+(?<reg>${Reg8_Key.join('|')})\\s*,\\s*(?<val>[0-9A-F]{2})`], {
+                _: 'rm',
+                w: '0'
+            }),
+            new InstructionSet([`(?<code>MOV)\\s+(?<reg>${Reg16_Key.join('|')})\\s*,\\s*(?<val>[0-9A-F]{2})(?<val2>[0-9A-F]{2})`], {
+                _: 'rm',
+                w: '1'
+            }),
 
             new InstructionSet([`(?<code>MOV)\\s+(?<w>WORD)\\s+PTR\\s*\\[\\s*(?<rm>${RM_Key.filter(x => x != 'BP').join('|')})\\s*]\\s*,\\s*(?<val>[0-9A-F]{2})(?<val2>[0-9A-F]{2})`],
                 {"mod": "00", "reg": '000', "_": "fm"}),
@@ -4188,7 +4196,7 @@ export class MOVSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInst
                 return list;
             }
             case 'sg': {
-                let list = ['100011' + config.d.bin! + '0', config.mod.bin! + '0'+ config.seg.bin! + config.rm.bin!];
+                let list = ['100011' + config.d.bin! + '0', config.mod.bin! + '0' + config.seg.bin! + config.rm.bin!];
                 if (config.mod.bin == "00" && config.rm.bin == "110") {
                     list.push(config.ea.bin!.substring(0, 8), config.ea.bin!.substring(8))
                 } else if (config.mod.bin == "01") {
@@ -4280,6 +4288,654 @@ export class MOVSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInst
     }
 
 }
+
+export class MOVSSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let w = this.w.bin == '1';
+        w ? cpu.setMem16(cpu.getMem16(cpu.SI, cpu.DS), cpu.DI, cpu.ES) : cpu.setMem16(cpu.getMem8(cpu.SI, cpu.DS), cpu.DI, cpu.ES);
+        let delta = w ? 2 : 1;
+        if (cpu.DB) {
+            delta = -delta;
+        }
+        cpu.SI += delta;
+        cpu.DI += delta;
+
+        cpu.IP += 1;
+    }
+
+    private static Bin: string = '1010010';
+    private static Asm: string = 'MOVS';
+
+    constructor() {
+        super(
+            [new InstructionSet([`(?<code>${MOVSSet.Bin})(?<w>[01])`])],
+            [
+                new InstructionSet([`MOVSB`], {w: '0'}),
+                new InstructionSet([`MOVSW`], {w: '1'}),
+            ],
+            {},
+            MOVSSet.Run)
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        if (config.w.asm == '1')
+            return ['10101101'];
+        return ['10101100'];
+    }
+
+    protected asm(config: InstructionConfig): string {
+        if (config.w.asm == '1')
+            return 'LODSW';
+        return 'LODSB';
+    }
+}
+
+export class MULSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let config: InstructionConfig = this;
+        let w = config.w?.bin == '1' ? 16 : 8;
+        let val = HelperSet.rm(cpu, this); //NUMR
+        let result: number = 0;
+        if (w == 8) {
+            result = cpu.AX = cpu.AL * val.value;
+            if (cpu.AX & 0xff00) {
+                cpu.CF = cpu.OF = 1;
+            } else {
+                cpu.CF = cpu.OF = 0;
+            }
+        } else {
+            result = cpu.AX * val.value;
+            cpu.AX = result;
+            cpu.DX = result >> 16;
+            if (cpu.DX) {
+                cpu.CF = cpu.OF = 1;
+            } else {
+                cpu.CF = cpu.OF = 0;
+            }
+        }
+        lflags.type = TypeFlag.t_MUL;
+        HelperSet.UpdateFlags(lflags.type, cpu, lflags);
+        if (HelperSet._asDOSBOX) {
+            if (w == 8) {
+                cpu.ZB = cpu.AL == 0;
+                cpu.PB = HelperSet.calculateParityFlag(result, 16)
+            } else {
+                cpu.ZB = cpu.AX == 0;
+                cpu.PB = HelperSet.calculateParityFlag(result, 32)
+            }
+        }
+        cpu.IP += MULSet.Fm.bin(config).length;
+    }
+
+    private static Asm: string = 'MUL';
+    protected static Fm = HelperSet.FM(this.Asm, '1111011', '100');
+
+    constructor() {
+        super(MULSet.Fm.binReg, MULSet.Fm.asmReg, {}, MULSet.Run);
+    }
+
+    protected asm(config: InstructionConfig): string {
+        switch (config['_'].asm) {
+            case 'fm':
+                return MULSet.Fm.asm(config);
+        }
+        return super.asm(config);
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        switch (config['_'].asm) {
+            case 'fm':
+                return MULSet.Fm.bin(config);
+        }
+        return super.bin(config);
+    }
+
+}
+
+export class NEGSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let config: InstructionConfig = this;
+        let val = HelperSet.rm(cpu, config);
+        lflags.var1 = val.value;
+        val.value = 0 - val.value;
+        lflags.res = val.value;
+        lflags.oldcf = cpu.CF;
+        lflags.type = config.w.bin == '1' ? TypeFlag.t_NEGb : TypeFlag.t_NEGw;
+        HelperSet.UpdateFlags(lflags.type, cpu, lflags);
+        cpu.IP += NEGSet.Fm.bin(config).length;
+    }
+
+    private static Asm: string = 'NEG';
+    protected static Fm = HelperSet.FM(this.Asm, '1111011', '011');
+
+    constructor() {
+        super(NEGSet.Fm.binReg, NEGSet.Fm.asmReg, {}, NEGSet.Run);
+    }
+
+    protected asm(config: InstructionConfig): string {
+        switch (config['_'].asm) {
+            case 'fm':
+                return NEGSet.Fm.asm(config);
+        }
+        return super.asm(config);
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        switch (config['_'].asm) {
+            case 'fm':
+                return NEGSet.Fm.bin(config);
+        }
+        return super.bin(config);
+    }
+
+}
+
+export class NOPSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(cpu: CPU) {
+        cpu.IP += 1;
+    }
+
+    private static Bin: string = '10010000';
+    private static Asm: string = 'NOP';
+
+    constructor() {
+        super(
+            [new InstructionSet([NOPSet.Bin])],
+            [new InstructionSet([NOPSet.Asm])],
+            {},
+            NOPSet.Run)
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        return [NOPSet.Bin]
+    }
+
+    protected asm(config: InstructionConfig): string {
+        return NOPSet.Asm;
+    }
+}
+
+export class NOTSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let config: InstructionConfig = this;
+        let val = HelperSet.rm(cpu, config);
+        lflags.var1 = val.value;
+        val.value = ~val.value;
+        lflags.res = val.value;
+        lflags.oldcf = cpu.CF;
+        //HelperSet.UpdateFlags(lflags.type, cpu, lflags);
+        cpu.IP += NOTSet.Fm.bin(config).length;
+    }
+
+    private static Asm: string = 'NOT';
+    protected static Fm = HelperSet.FM(this.Asm, '1111011', '010');
+
+    constructor() {
+        super(NOTSet.Fm.binReg, NOTSet.Fm.asmReg, {}, NOTSet.Run);
+    }
+
+    protected asm(config: InstructionConfig): string {
+        switch (config['_'].asm) {
+            case 'fm':
+                return NOTSet.Fm.asm(config);
+        }
+        return super.asm(config);
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        switch (config['_'].asm) {
+            case 'fm':
+                return NOTSet.Fm.bin(config);
+        }
+        return super.bin(config);
+    }
+
+}
+
+export class ORSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let config: InstructionConfig = this;
+        let w = config.w?.bin == '1' ? 16 : 8;
+        let p0: GetterAndSetter;
+        let p1: GetterAndSetter;
+        if (config['_'].asm == 'tr') {
+            if (config.d?.bin === '1') {
+                p0 = HelperSet.reg(cpu, this);
+                p1 = HelperSet.rm(cpu, this);
+            } else {
+                p0 = HelperSet.rm(cpu, this);
+                p1 = HelperSet.reg(cpu, this);
+            }
+            cpu.IP += ORSet.Tr.bin(config).length;
+        } else if (config['_'].asm == 'tc') {
+            p0 = HelperSet.rm(cpu, this);
+            p1 = HelperSet.get_setCONST(parseInt(config.val.asm!, 16));
+            cpu.IP += ORSet.Tc.bin(config).length;
+        } else if (config['_'].asm == 'ta') {
+            p0 = HelperSet.get_setReg(cpu, w == 16, Reg8.AL);
+            p1 = HelperSet.get_setCONST(parseInt(config.val.asm!, 16));
+            cpu.IP += ORSet.Ta.bin(config).length;
+        } else {
+            p1 = p0 = HZ;
+        }
+
+        const result = p0.value | p1.value;
+
+        p0.value = result;
+        lflags.var1 = p0.value;
+        lflags.var2 = p1.value;
+        lflags.res = result;
+        lflags.oldcf = cpu.CF;
+        lflags.type = w ? TypeFlag.t_ORw : TypeFlag.t_ORb;
+        HelperSet.UpdateFlags(lflags.type, cpu, lflags);
+
+    }
+
+    private static Asm: string = 'OR';
+
+    protected static Tr = HelperSet.TR(this.Asm, '000010');
+    protected static Tc = HelperSet.TC(this.Asm, '100000', '001');
+    protected static Ta = HelperSet.TA(this.Asm, '0000110')
+
+
+    constructor() {
+        super([...ORSet.Ta.binReg, ...ORSet.Tc.binReg, ...ORSet.Tr.binReg],
+            [...ORSet.Ta.asmReg, ...ORSet.Tc.asmReg, ...ORSet.Tr.asmReg],
+            {}, ORSet.Run);
+    }
+
+    protected asm(config: InstructionConfig): string {
+        switch (config['_'].asm) {
+            case 'tr':
+                return ORSet.Tr.asm(config);
+            case 'tc':
+                return ORSet.Tc.asm(config);
+            case 'ta':
+                return ORSet.Ta.asm(config);
+        }
+        return super.asm(config);
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        switch (config['_'].asm) {
+            case 'tr':
+                return ORSet.Tr.bin(config);
+            case 'tc':
+                return ORSet.Tc.bin(config);
+            case 'ta':
+                return ORSet.Ta.bin(config);
+        }
+        return super.bin(config);
+    }
+}
+
+export class OUTSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static _fp: string = '1110011';
+    private static _vp: string = '1110111';
+    private static _name: string = "OUT";
+
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        const config = this;
+        let is16 = config.w_reg.bin == '1';
+        let src = HelperSet.get_setReg(cpu, is16, ALL.AX);
+        let port;
+        if (config.i.bin == '0') {
+            port = parseInt(config.port.bin!, 2);
+        } else {
+            port = HelperSet.get_setReg(cpu, true, ALL.DX).value;
+        }
+        cpu.writeIO(port, src.value);
+        if (is16) {
+            cpu.writeIO(port + 1, src.value >> 8);
+        }
+
+        cpu.IP += OUTSet.bin(config).length;
+    }
+
+    constructor() {
+        super([
+            new InstructionSet([`(?<code>${OUTSet._fp})(?<w_reg>[01])`, `(?<port>[01]{8})`], {'i': '0'}),
+            new InstructionSet([`(?<code>${OUTSet._vp})(?<w_reg>[01])`], {'i': '1'})
+        ], [
+            new InstructionSet([`(?<code>${OUTSet._name})\\s+(?<w_reg>AX|AL)\\s*,\\s*(?<port>[0-9A-F]{2})`], {'i': '0'}),
+            new InstructionSet([`(?<code>${OUTSet._name})\\s+(?<w_reg>AX|AL)\\s*,\\s*DX`], {'i': '1'}),
+        ], {}, OUTSet.Run);
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        return OUTSet.bin(config);
+    }
+
+    protected asm(config: InstructionConfig): string {
+        if (config.i.bin == '0')
+            return `${OUTSet._name} ${config.w_reg.bin == '1' ? 'AX' : 'AL'}, ${config.port.asm}`;
+        else if (config.i.bin == '1')
+            return `${OUTSet._name} ${config.w_reg.bin == '1' ? 'AX' : 'AL'}, DX`;
+        return super.asm(config);
+    }
+
+    protected static bin(config: InstructionConfig): string[] {
+        if (config.i.bin == '0')
+            return [`${OUTSet._fp}${config.w_reg.bin}`, `${config.port.bin}`]
+        else if (config.i.bin == '1')
+            return [`${OUTSet._vp}${config.w_reg.bin}`]
+        return [];
+    }
+
+}
+
+export class POPSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let src: GetterAndSetter = HZ;
+        switch (this._.asm) {
+            case 'fm':
+                src = HelperSet.rm(cpu, this);
+                break;
+            case 'rg':
+                src = HelperSet.reg(cpu, this);
+                break;
+            case 'sg':
+                if(this.seg.bin == '01') throw new Error();
+                src =  HelperSet.get_setReg(cpu, true, parseInt(this.seg.bin!, 2) + 8);
+                break;
+        }
+        src.value = HelperSet.pop(cpu);
+        cpu.IP += POPSet.bin(this).length;
+    }
+
+    private static Asm: string = 'POP';
+
+    constructor() {
+        super([
+            new InstructionSet([`(?<code>01011)(?<reg>[01]{3})`], {_: 'rg', w: '1'}),
+            new InstructionSet([`(?<code>000)(?<seg>[01]{2})(?<code2>111)`], {_: 'sg', w: '1'}),
+            new InstructionSet([`(?<code>10001111)`, `(?<mod>00)(?<reg>000)(?<rm>000|001|010|011|100|101|111)`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>10001111)`, `(?<mod>00)(?<reg>000)(?<rm>110)`, `(?<ea>[01]{8})`, `(?<ea2>[01]{8})`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>10001111)`, `(?<mod>01)(?<reg>000)(?<rm>[01]{3})`, `(?<disp>[01]{8})`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>10001111)`, `(?<mod>10)(?<reg>000)(?<rm>[01]{3})`, `(?<disp>[01]{8})`, `(?<disp2>[01]{8})`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>10001111)`, `(?<mod>11)(?<reg>000)(?<rm>[01]{3})`], {_: 'fm', w: '1'}),
+
+
+        ], [
+
+            new InstructionSet([`(?<code>POP)\\s+(?<reg>${Reg16_Key.join('|')})\\s*`], {
+                "mod": "11",
+                "w": "1",
+                "_": "rg"
+            }),
+            new InstructionSet([`(?<code>POP)\\s+(?<seg>ES|SS|DS)\\s*`], {
+                "mod": "11",
+                "w": "1",
+                "reg": '000',
+                "_": "sg"
+            }),
+
+            new InstructionSet([`(?<code>POP)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<rm>${RM_Key.filter(x => x != 'BP').join('|')})\\s*]`],
+                {"mod": "00", "reg": '000', "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>POP)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<ea>[0-9A-F]{2})(?<ea2>[0-9A-F]{2})\\s*]`],
+                {"mod": "00", "reg": '000', "rm": "110", "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>POP)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<rm>${RM_Key.join('|')})\\s*(?<disp>[\\+\\-]\\s*[0-9A-F]{2})\\s*]`],
+                {"mod": "01", "reg": '000', "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>POP)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<rm>${RM_Key.join('|')})\\s*\\+\\s*(?<disp>[0-9A-F]{2})(?<disp2>[0-9A-F]{2})\\s*]`],
+                {"mod": "10", "reg": '000', "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>POP)\\s+(?<rm>${Reg16_Key.join('|')})`], {
+                "mod": "11",
+                "w": "1",
+                "reg": '000',
+                "_": "fm"
+            }),
+
+
+        ], {}, POPSet.Run);
+
+
+    }
+
+    protected static bin(config: InstructionConfig): string[] {
+        switch (config._.bin) {
+            case 'fm':
+                let list = ['10001111', config.mod.bin! + '000' + config.rm.bin!];
+                if (config.mod.bin == "00" && config.rm.bin == "110") {
+                    list.push(config.ea.bin!.substring(0, 8), config.ea.bin!.substring(8))
+                } else if (config.mod.bin == "01") {
+                    list.push(config.disp.bin!);
+                } else if (config.mod.bin == "10") {
+                    list.push(config.disp.bin!.substring(0, 8), config.disp.bin!.substring(8))
+                }
+                return list;
+            case 'rg':
+                return [`01011${config.reg.bin}`]
+            case 'sg':
+                return [`000${config.seg.bin}111`]
+        }
+        return [];
+    }
+
+    override asm(config: InstructionConfig): string {
+        switch (config._.asm) {
+            case 'fm':
+                let disp = config.disp?.asm ?? "";
+                if (disp.length == 4) {
+                    disp = '+' + disp;
+                }
+                let p = `${config.w.asm} PTR [${config.rm.asm}${disp}]`;
+                if (config.mod.bin == '00' && config.rm.bin == '110') {
+                    p = `${config.w.asm} PTR [${config.ea.asm}]`
+                }
+                if (config.mod.bin == '11') {
+                    p = config.rm.asm!
+                }
+
+                return 'POP' + ` ${p}`
+            case 'rg':
+                const reg = config.reg.asm!;
+                return 'POP' + ` ${reg}`;
+            case 'sg':
+                const seg = config.seg.asm!;
+                return 'POP' + ` ${seg}`;
+        }
+        return super.asm(config);
+    }
+
+    override bin(config: InstructionConfig): string[] {
+        return POPSet.bin(config);
+    }
+}
+
+export class POPFSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(cpu: CPU) {
+        cpu.set16(ALL.FLAGS, HelperSet.pop(cpu));
+        cpu.IP += 1;
+    }
+
+    private static Bin: string = '10011100';
+    private static Asm: string = 'POPF';
+
+    constructor() {
+        super(
+            [new InstructionSet([POPFSet.Bin])],
+            [new InstructionSet([POPFSet.Asm])],
+            {},
+            POPFSet.Run)
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        return [POPFSet.Bin]
+    }
+
+    protected asm(config: InstructionConfig): string {
+        return POPFSet.Asm;
+    }
+}
+
+export class PUSHSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(this: InstructionConfig, cpu: CPU) {
+        let src: GetterAndSetter = HZ;
+        switch (this._.asm) {
+            case 'fm':
+                src = HelperSet.rm(cpu, this);
+                break;
+            case 'rg':
+                src = HelperSet.reg(cpu, this);
+                break;
+            case 'sg':
+                if(this.seg.bin == '01') throw new Error();
+                src =  HelperSet.get_setReg(cpu, true, parseInt(this.seg.bin!, 2) + 8);
+                break;
+        }
+        HelperSet.push(cpu, src.value);
+        cpu.IP += PUSHSet.bin(this).length;
+    }
+
+    private static Asm: string = 'PUSH';
+
+    constructor() {
+        super([
+            new InstructionSet([`(?<code>01010)(?<reg>[01]{3})`], {_: 'rg', w: '1'}),
+            new InstructionSet([`(?<code>000)(?<seg>[01]{2})(?<code2>110)`], {_: 'sg', w: '1'}),
+            new InstructionSet([`(?<code>11111111)`, `(?<mod>00)(?<reg>000)(?<rm>000|001|010|011|100|101|111)`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>11111111)`, `(?<mod>00)(?<reg>000)(?<rm>110)`, `(?<ea>[01]{8})`, `(?<ea2>[01]{8})`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>11111111)`, `(?<mod>01)(?<reg>000)(?<rm>[01]{3})`, `(?<disp>[01]{8})`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>11111111)`, `(?<mod>10)(?<reg>000)(?<rm>[01]{3})`, `(?<disp>[01]{8})`, `(?<disp2>[01]{8})`], {
+                _: 'fm',
+                w: '1'
+            }),
+            new InstructionSet([`(?<code>11111111)`, `(?<mod>11)(?<reg>000)(?<rm>[01]{3})`], {_: 'fm', w: '1'}),
+
+
+        ], [
+
+            new InstructionSet([`(?<code>PUSH)\\s+(?<reg>${Reg16_Key.join('|')})\\s*`], {
+                "mod": "11",
+                "w": "1",
+                "_": "rg"
+            }),
+            new InstructionSet([`(?<code>PUSH)\\s+(?<seg>ES|SS|DS)\\s*`], {
+                "mod": "11",
+                "w": "1",
+                "reg": '000',
+                "_": "sg"
+            }),
+
+            new InstructionSet([`(?<code>PUSH)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<rm>${RM_Key.filter(x => x != 'BP').join('|')})\\s*]`],
+                {"mod": "00", "reg": '000', "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>PUSH)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<ea>[0-9A-F]{2})(?<ea2>[0-9A-F]{2})\\s*]`],
+                {"mod": "00", "reg": '000', "rm": "110", "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>PUSH)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<rm>${RM_Key.join('|')})\\s*(?<disp>[\\+\\-]\\s*[0-9A-F]{2})\\s*]`],
+                {"mod": "01", "reg": '000', "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>PUSH)\\s+(WORD\\s+PTR){0,1}\\s*\\[\\s*(?<rm>${RM_Key.join('|')})\\s*\\+\\s*(?<disp>[0-9A-F]{2})(?<disp2>[0-9A-F]{2})\\s*]`],
+                {"mod": "10", "reg": '000', "_": "fm", "w": "1"}),
+            new InstructionSet([`(?<code>PUSH)\\s+(?<rm>${Reg16_Key.join('|')})`], {
+                "mod": "11",
+                "w": "1",
+                "reg": '000',
+                "_": "fm"
+            }),
+
+
+        ], {}, PUSHSet.Run);
+
+
+    }
+
+    protected static bin(config: InstructionConfig): string[] {
+        switch (config._.bin) {
+            case 'fm':
+                let list = ['11111111', config.mod.bin! + '000' + config.rm.bin!];
+                if (config.mod.bin == "00" && config.rm.bin == "110") {
+                    list.push(config.ea.bin!.substring(0, 8), config.ea.bin!.substring(8))
+                } else if (config.mod.bin == "01") {
+                    list.push(config.disp.bin!);
+                } else if (config.mod.bin == "10") {
+                    list.push(config.disp.bin!.substring(0, 8), config.disp.bin!.substring(8))
+                }
+                return list;
+            case 'rg':
+                return [`01010${config.reg.bin}`]
+            case 'sg':
+                return [`000${config.seg.bin}110`]
+        }
+        return [];
+    }
+
+    override asm(config: InstructionConfig): string {
+        switch (config._.asm) {
+            case 'fm':
+                let disp = config.disp?.asm ?? "";
+                if (disp.length == 4) {
+                    disp = '+' + disp;
+                }
+                let p = `${config.w.asm} PTR [${config.rm.asm}${disp}]`;
+                if (config.mod.bin == '00' && config.rm.bin == '110') {
+                    p = `${config.w.asm} PTR [${config.ea.asm}]`
+                }
+                if (config.mod.bin == '11') {
+                    p = config.rm.asm!
+                }
+
+                return 'PUSH' + ` ${p}`
+            case 'rg':
+                const reg = config.reg.asm!;
+                return 'PUSH' + ` ${reg}`;
+            case 'sg':
+                const seg = config.seg.asm!;
+                return 'PUSH' + ` ${seg}`;
+        }
+        return super.asm(config);
+    }
+
+    override bin(config: InstructionConfig): string[] {
+        return PUSHSet.bin(config);
+    }
+}
+
+export class PUSHFSet<CPU extends TCPU> extends HelperSet<CPU> implements ISetInstruction<CPU> {
+    private static Run<CPU extends TCPU>(cpu: CPU) {
+        HelperSet.push(cpu, cpu.get16(ALL.FLAGS));
+        cpu.IP += 1;
+    }
+
+    private static Bin: string = '10011100';
+    private static Asm: string = 'PUSHF';
+
+    constructor() {
+        super(
+            [new InstructionSet([PUSHFSet.Bin])],
+            [new InstructionSet([PUSHFSet.Asm])],
+            {},
+            PUSHFSet.Run)
+    }
+
+    protected bin(config: InstructionConfig): string[] {
+        return [PUSHFSet.Bin]
+    }
+
+    protected asm(config: InstructionConfig): string {
+        return PUSHFSet.Asm;
+    }
+}
+
 
 let CPU_IODelayRemoved: number;
 let CPU_Cycles: number;
